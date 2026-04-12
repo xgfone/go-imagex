@@ -28,6 +28,7 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+// TextWatermark draws a text watermark onto an image.
 type TextWatermark struct {
 	Position Position
 	Opacity  float64
@@ -53,6 +54,7 @@ func (wm *TextWatermark) setDefault() {
 func (wm TextWatermark) Draw(src image.Image, otfont *opentype.Font, text string) (dst image.Image, err error) {
 	wm.setDefault()
 
+	// Choose the layout direction and derive a font size from the base image.
 	isLandscape := src.Bounds().Dx() > src.Bounds().Dy()
 	baseSize := src.Bounds().Dx()
 	if !isLandscape {
@@ -67,16 +69,19 @@ func (wm TextWatermark) Draw(src image.Image, otfont *opentype.Font, text string
 	}
 	defer closeFontFace(face)
 
+	// Use horizontal layout for landscape images and vertical layout otherwise.
 	if isLandscape {
 		return wm.drawHorizontalText(src, face, text), nil
 	}
 	return wm.drawVerticalText(src, face, text), nil
 }
 
+// DrawHorizontalText draws text using a horizontal layout.
 func (wm TextWatermark) DrawHorizontalText(src image.Image, face font.Face, text string) image.Image {
 	return wm.drawHorizontalText(src, face, text)
 }
 
+// DrawVerticalText draws text using a vertical layout.
 func (wm TextWatermark) DrawVerticalText(src image.Image, face font.Face, text string) image.Image {
 	return wm.drawVerticalText(src, face, text)
 }
@@ -108,6 +113,7 @@ func (wm *TextWatermark) drawVerticalText(src image.Image, face font.Face, text 
 		patch      *image.NRGBA
 	}
 
+	// Measure each display unit first so we can compute the overall vertical layout.
 	metrics := make([]unitMetric, 0, len(units))
 	maxUnitWidth := 0
 	heightSum := 0
@@ -139,6 +145,7 @@ func (wm *TextWatermark) drawVerticalText(src image.Image, face font.Face, text 
 		totalHeight += unitSpacing * (len(metrics) - 1)
 	}
 
+	// Draw each unit centered within the vertical watermark column.
 	pos := wm.Position.calculatePosition(src.Bounds().Size(), image.Pt(maxUnitWidth, totalHeight))
 	centerX := pos.X + maxUnitWidth/2
 	y := pos.Y

@@ -12,25 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package watermark
-
-import (
-	"image"
-	"image/draw"
-
-	"github.com/xgfone/go-imagex"
-)
-
-// ImageWatermark draws an image watermark onto another image.
-type ImageWatermark struct {
-	Position Position
-}
-
-// Draw overlays mark onto src and returns the result.
-func (wm ImageWatermark) Draw(src, mark image.Image) image.Image {
-	out := imagex.ToNRGBA(src)
-	pos := wm.Position.calculatePosition(src.Bounds().Size(), mark.Bounds().Size())
-	rect := image.Rectangle{Min: pos, Max: pos.Add(mark.Bounds().Size())}
-	draw.Draw(out, rect, mark, image.Point{}, draw.Over)
-	return out
-}
+// Package orientation extracts and applies image orientation metadata.
+package orientation

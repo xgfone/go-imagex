@@ -23,6 +23,7 @@ import (
 	"golang.org/x/image/font/opentype"
 )
 
+// ScanDirs recursively scans dirs and returns all supported font entries.
 func ScanDirs(dirs []string) ([]Entry, error) {
 	fontfiles := make([]Entry, 0, 128)
 
@@ -43,6 +44,7 @@ func ScanDirs(dirs []string) ([]Entry, error) {
 			continue
 		}
 
+		// Walk each existing font directory and collect supported files.
 		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !IsSupportedFontFile(path) {
 				return err
@@ -60,17 +62,17 @@ func ScanDirs(dirs []string) ([]Entry, error) {
 	return fontfiles, nil
 }
 
+// ScanFile parses a single font file and appends all faces into fontEntries.
 func ScanFile(path string, fontEntries []Entry) ([]Entry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fontEntries, err
 	}
 
-	// 用 ParseCollection 统一兼容 TTF/OTF/TTC/OTC。
+	// Use ParseCollection for unified compatibility with TTF/OTF/TTC/OTC.
 	coll, err := opentype.ParseCollection(data)
 	if err != nil {
-		fmt.Println("+++111", path)
-		return fontEntries, err
+		return fontEntries, fmt.Errorf("fail to parse font collection %q: %w", path, err)
 	}
 
 	num := coll.NumFonts()

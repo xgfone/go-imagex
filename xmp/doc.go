@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xmp provides some functions to add the XMP metadata into the image.
+// Package xmp provides helpers to inject XMP metadata into image files.
 package xmp

@@ -16,6 +16,7 @@ package orientation
 
 import "image"
 
+// ApplyOrientation applies the EXIF orientation transform to img.
 func ApplyOrientation(img image.Image, orientation int) image.Image {
 	switch orientation {
 	case 2:

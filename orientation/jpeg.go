@@ -19,11 +19,14 @@ import (
 	"encoding/binary"
 )
 
+// ExtractOrientationFromJPEG returns the EXIF orientation value from JPEG data.
+// It falls back to 1 when no valid orientation can be found.
 func ExtractOrientationFromJPEG(data []byte) int {
 	if len(data) < 4 || data[0] != 0xFF || data[1] != 0xD8 {
 		return 1
 	}
 
+	// Walk the JPEG segments until Start Of Scan or End Of Image.
 	for i := 2; i+4 <= len(data); {
 		if data[i] != 0xFF {
 			break
@@ -45,6 +48,7 @@ func ExtractOrientationFromJPEG(data []byte) int {
 
 		if marker == 0xE1 {
 			payload := data[i+4 : i+2+segLen]
+			// Parse the EXIF payload when the APP1 segment starts with "Exif\0\0".
 			if len(payload) >= 6 && bytes.Equal(payload[:6], []byte{'E', 'x', 'i', 'f', 0, 0}) {
 				if o, ok := parseExifOrientation(payload[6:]); ok {
 					return o

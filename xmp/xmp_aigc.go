@@ -26,6 +26,7 @@ import (
 
 var xmlPrefixPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9._-]*$`)
 
+// AIGC describes the AIGC metadata stored inside the XMP packet.
 type AIGC struct {
 	Label string `json:",omitempty"`
 
@@ -38,6 +39,7 @@ type AIGC struct {
 	ReserveCode2 string `json:",omitempty"`
 }
 
+// BuildXMPPacketData builds the XMP packet and returns it as bytes.
 func (aigc AIGC) BuildXMPPacketData(nsPrefix, nsURI string) (data []byte, err error) {
 	var buf bytes.Buffer
 	buf.Grow(512)
@@ -51,6 +53,7 @@ func (aigc AIGC) BuildXMPPacketData(nsPrefix, nsURI string) (data []byte, err er
 	return
 }
 
+// BuildXMPPacket writes the XMP packet to w.
 func (aigc AIGC) BuildXMPPacket(w io.Writer, nsPrefix, nsURI string) (err error) {
 	if nsPrefix == "" {
 		nsPrefix = "aigc"

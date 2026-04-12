@@ -26,6 +26,7 @@ import (
 	"golang.org/x/image/font/sfnt"
 )
 
+// Entry represents one font face inside a font file or collection.
 type Entry struct {
 	Path  string
 	Index int
@@ -43,6 +44,7 @@ type Entry struct {
 	font *opentype.Font
 }
 
+// NewEntry builds a font entry and caches its searchable names.
 func NewEntry(path string, index int, font *opentype.Font) Entry {
 	fileName := filepath.Base(path)
 
@@ -64,6 +66,7 @@ func NewEntry(path string, index int, font *opentype.Font) Entry {
 	return entry
 }
 
+// Load loads the font face referenced by the entry from disk.
 func (e *Entry) Load() (*opentype.Font, error) {
 	data, err := os.ReadFile(e.Path)
 	if err != nil {
@@ -87,6 +90,7 @@ func (e *Entry) Load() (*opentype.Font, error) {
 	return font, nil
 }
 
+// Match reports whether name matches one of the entry lookup names.
 func (e *Entry) Match(name string) bool {
 	name = normalizeLookupName(name)
 	switch name {

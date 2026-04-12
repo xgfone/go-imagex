@@ -17,16 +17,24 @@ package watermark
 import "image"
 
 const (
-	PositionCenter       = "center"
-	PositionTopCenter    = "top-center"
+	// PositionCenter centers the watermark on the base image.
+	PositionCenter = "center"
+	// PositionTopCenter places the watermark at the top center.
+	PositionTopCenter = "top-center"
+	// PositionBottomCenter places the watermark at the bottom center.
 	PositionBottomCenter = "bottom-center"
 
-	PositionTopLeft     = "top-left"
-	PositionTopRight    = "top-right"
-	PositionBottomLeft  = "bottom-left"
+	// PositionTopLeft places the watermark at the top-left corner.
+	PositionTopLeft = "top-left"
+	// PositionTopRight places the watermark at the top-right corner.
+	PositionTopRight = "top-right"
+	// PositionBottomLeft places the watermark at the bottom-left corner.
+	PositionBottomLeft = "bottom-left"
+	// PositionBottomRight places the watermark at the bottom-right corner.
 	PositionBottomRight = "bottom-right"
 )
 
+// Position describes where a watermark should be placed.
 type Position struct {
 	Position string
 

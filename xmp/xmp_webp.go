@@ -23,6 +23,7 @@ import (
 	"github.com/eringen/gowebper"
 )
 
+// EncodeWebPWithXMP encodes img as WebP and injects xmp into the RIFF payload.
 func EncodeWebPWithXMP(img image.Image, quality float32, xmp []byte) ([]byte, error) {
 	opts := &gowebper.Options{Level: gowebper.LevelDefault}
 	q := int(math.Round(float64(quality)))
@@ -32,13 +33,16 @@ func EncodeWebPWithXMP(img image.Image, quality float32, xmp []byte) ([]byte, er
 		}
 		opts.Quality = q
 	}
+
 	payload, err := gowebper.EncodeToBytes(img, opts)
 	if err != nil {
 		return nil, err
 	}
+
 	if len(xmp) == 0 {
 		return payload, nil
 	}
+
 	return injectWebPXMP(payload, xmp)
 }
 
@@ -57,11 +61,13 @@ func injectWebPXMP(data, xmp []byte) ([]byte, error) {
 		if off+chunkTotal > len(chunks) {
 			return nil, errors.New("corrupt webp chunks")
 		}
+
 		if fourcc == "VP8X" {
 			hasVP8X = true
 			vp8xIndex = off
 			break
 		}
+
 		off += chunkTotal
 	}
 
@@ -70,6 +76,7 @@ func injectWebPXMP(data, xmp []byte) ([]byte, error) {
 	out = append(out, data[:12]...)
 
 	if hasVP8X {
+		// Reuse the existing VP8X chunk and only enable the XMP feature bit.
 		updated := append([]byte(nil), chunks...)
 		updated[vp8xIndex+8] |= 0x04 // XMP flag
 		out = append(out, updated...)
@@ -78,17 +85,21 @@ func injectWebPXMP(data, xmp []byte) ([]byte, error) {
 		return out, nil
 	}
 
+	// Older/simple files may not have VP8X, so synthesize one from the canvas info.
 	dims, hasAlpha, err := webpCanvasInfo(chunks)
 	if err != nil {
 		return nil, err
 	}
+
 	vp8x := make([]byte, 18)
 	copy(vp8x[:4], []byte("VP8X"))
 	binary.LittleEndian.PutUint32(vp8x[4:8], 10)
+
 	flags := byte(0x04)
 	if hasAlpha {
 		flags |= 0x10
 	}
+
 	vp8x[8] = flags
 	write24LE(vp8x[12:15], uint32(dims.X-1))
 	write24LE(vp8x[15:18], uint32(dims.Y-1))
@@ -122,18 +133,22 @@ func webpCanvasInfo(chunks []byte) (image.Point, bool, error) {
 		if off+chunkTotal > len(chunks) {
 			return image.Point{}, false, errors.New("corrupt webp data")
 		}
+
 		data := chunks[off+8 : off+8+sz]
 		switch fourcc {
 		case "VP8X":
 			if len(data) < 10 {
 				return image.Point{}, false, errors.New("invalid VP8X chunk")
 			}
+
 			hasAlpha = data[0]&0x10 != 0
 			return image.Pt(int(read24LE(data[4:7]))+1, int(read24LE(data[7:10]))+1), hasAlpha, nil
+
 		case "VP8 ":
 			if len(data) < 10 {
 				return image.Point{}, false, errors.New("invalid VP8 chunk")
 			}
+
 			for i := 0; i+9 < len(data); i++ {
 				if data[i] == 0x9d && data[i+1] == 0x01 && data[i+2] == 0x2a {
 					w := int(binary.LittleEndian.Uint16(data[i+3:i+5]) & 0x3FFF)
@@ -141,15 +156,18 @@ func webpCanvasInfo(chunks []byte) (image.Point, bool, error) {
 					return image.Pt(w, h), hasAlpha, nil
 				}
 			}
+
 		case "VP8L":
 			if len(data) < 5 || data[0] != 0x2f {
 				return image.Point{}, false, errors.New("invalid VP8L chunk")
 			}
+
 			bits := uint32(data[1]) | uint32(data[2])<<8 | uint32(data[3])<<16 | uint32(data[4])<<24
 			w := int(bits&0x3FFF) + 1
 			h := int((bits>>14)&0x3FFF) + 1
 			hasAlpha = (bits>>28)&1 == 1
 			return image.Pt(w, h), hasAlpha, nil
+
 		case "ALPH":
 			hasAlpha = true
 		}

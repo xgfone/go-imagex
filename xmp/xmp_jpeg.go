@@ -24,6 +24,7 @@ import (
 
 const jpegXMPHeader = "http://ns.adobe.com/xap/1.0/\x00"
 
+// EncodeJPEGWithXMP encodes img as JPEG and injects xmp into an APP1 segment.
 func EncodeJPEGWithXMP(img image.Image, quality int, xmp []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality}); err != nil {

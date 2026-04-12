@@ -30,6 +30,7 @@ var supportedExts = []string{
 	".otc",
 }
 
+// IsSupportedFontFile reports whether path has a supported font extension.
 func IsSupportedFontFile(path string) bool {
 	return slices.Contains(supportedExts, strings.ToLower(filepath.Ext(path)))
 }

@@ -25,6 +25,7 @@ import (
 
 const pngXMPKeyword = "XML:com.adobe.xmp"
 
+// EncodePNGWithXMP encodes img as PNG and injects xmp into an iTXt chunk.
 func EncodePNGWithXMP(img image.Image, xmp []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := png.Encoder{CompressionLevel: png.DefaultCompression}

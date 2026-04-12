@@ -21,6 +21,7 @@ import (
 	"strings"
 )
 
+// GetSystemDirs returns the common system font directories for the OS.
 func GetSystemDirs() []string {
 	dirs := make([]string, 0, 6)
 	home, _ := os.UserHomeDir()

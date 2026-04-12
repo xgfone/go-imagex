@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package imagex provides image helpers.
 package imagex
 
 import (
@@ -28,6 +29,7 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
+// Load decodes an image from r and optionally applies opacity to it.
 func Load(r io.Reader, opacity float64) (image.Image, error) {
 	img, _, err := image.Decode(r)
 	if err != nil {
@@ -41,6 +43,7 @@ func Load(r io.Reader, opacity float64) (image.Image, error) {
 	return img, nil
 }
 
+// LoadFile loads an image from a local path or an HTTP(S) URL.
 func LoadFile(path string, opacity float64) (image.Image, error) {
 	var f io.ReadCloser
 	if strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "http://") {
@@ -67,6 +70,7 @@ func LoadFile(path string, opacity float64) (image.Image, error) {
 	return Load(f, opacity)
 }
 
+// ToNRGBA returns a cloned NRGBA image for img.
 func ToNRGBA(img image.Image) *image.NRGBA {
 	if nrgba, ok := img.(*image.NRGBA); ok {
 		return CloneNRGBA(nrgba)
@@ -78,6 +82,7 @@ func ToNRGBA(img image.Image) *image.NRGBA {
 	return out
 }
 
+// CloneNRGBA returns a deep copy of src.
 func CloneNRGBA(src *image.NRGBA) *image.NRGBA {
 	if src == nil {
 		return nil
@@ -88,6 +93,7 @@ func CloneNRGBA(src *image.NRGBA) *image.NRGBA {
 	return out
 }
 
+// Resize rescales src by scale while keeping at least one pixel per side.
 func Resize(src image.Image, scale float64) image.Image {
 	newW := max(1, int(float64(src.Bounds().Dx())*scale))
 	newH := max(1, int(float64(src.Bounds().Dy())*scale))
@@ -100,6 +106,7 @@ func Resize(src image.Image, scale float64) image.Image {
 	return dst
 }
 
+// ApplyOpacity multiplies the alpha channel of src by opacity.
 func ApplyOpacity(src image.Image, opacity float64) image.Image {
 	if opacity >= 1 {
 		return src
@@ -117,6 +124,7 @@ func ApplyOpacity(src image.Image, opacity float64) image.Image {
 	return out
 }
 
+// DropAlpha flattens images with alpha onto a white background.
 func DropAlpha(img image.Image) image.Image {
 	switch img.(type) {
 	case *image.RGBA, *image.NRGBA, *image.RGBA64, *image.NRGBA64, *image.Alpha, *image.Alpha16:
@@ -134,6 +142,7 @@ func flattenToRGB(img image.Image) *image.RGBA {
 	return out
 }
 
+// Alpha255 converts an opacity ratio in [0, 1] into an 8-bit alpha value.
 func Alpha255(v float64) uint8 {
 	if v <= 0 {
 		return 0
