@@ -20,6 +20,8 @@ import (
 	"image"
 )
 
+var Noop = TransformFunc(func(ctx context.Context, i image.Image) (image.Image, error) { return i, nil })
+
 // Transformer transforms an image and returns the transformed result.
 type Transformer interface {
 	Transform(context.Context, image.Image) (image.Image, error)
