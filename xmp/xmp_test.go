@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"image"
+	"image/jpeg"
+	"image/png"
 	"strings"
 	"testing"
 )
@@ -42,9 +44,19 @@ func TestAIGCBuildXMPPacket(t *testing.T) {
 	if err := aigc.BuildXMPPacket(&buf, "ns1", " https://example.com/ns "); err != nil {
 		t.Fatalf("build packet: %v", err)
 	}
-
 	if !strings.Contains(buf.String(), `xmlns:ns1="https://example.com/ns"`) {
 		t.Fatalf("unexpected namespace: %s", buf.String())
+	}
+}
+
+func TestAIGCHelpers(t *testing.T) {
+	if !(AIGC{}).IsZero() {
+		t.Fatal("zero AIGC should be empty")
+	}
+
+	aigc := (AIGC{}).WithProduceID("p1").WithPropagatorID("p2")
+	if aigc.IsZero() || aigc.ProduceID != "p1" || aigc.PropagatorID != "p2" {
+		t.Fatalf("unexpected AIGC helper result: %#v", aigc)
 	}
 }
 
@@ -67,59 +79,185 @@ func TestAIGCBuildXMPPacketErrors(t *testing.T) {
 	}
 }
 
-func TestEncodeJPEGWithXMP(t *testing.T) {
-	xmpData := []byte("<xmp/>")
-	data, err := EncodeJPEGWithXMP(xmpTestImage(), 80, xmpData)
-	if err != nil {
-		t.Fatalf("encode jpeg with xmp: %v", err)
-	}
-	if !bytes.Contains(data, append([]byte(jpegXMPHeader), xmpData...)) {
-		t.Fatal("expected jpeg xmp payload")
+func TestRegistryInject(t *testing.T) {
+	orig, existed := _registries["test"]
+	if existed {
+		defer func() { _registries["test"] = orig }()
+	} else {
+		defer delete(_registries, "test")
 	}
 
-	plain, err := EncodeJPEGWithXMP(xmpTestImage(), 80, nil)
+	called := false
+	RegisterInjectFunc("test", func(imageData, xmpData []byte) ([]byte, error) {
+		called = true
+		return append(append([]byte(nil), imageData...), xmpData...), nil
+	})
+
+	got, err := Inject("test", []byte("img"), []byte("xmp"))
 	if err != nil {
-		t.Fatalf("encode plain jpeg: %v", err)
+		t.Fatalf("inject dispatch: %v", err)
 	}
-	if bytes.Contains(plain, []byte(jpegXMPHeader)) {
-		t.Fatal("unexpected xmp header in plain jpeg")
+	if !called || string(got) != "imgxmp" {
+		t.Fatalf("unexpected dispatch result: %q", got)
 	}
 
-	if _, err := injectJPEGXMP([]byte("bad"), xmpData); err == nil {
-		t.Fatal("expected invalid jpeg error")
-	}
-	tooLarge := bytes.Repeat([]byte("x"), 0xFFFF)
-	if _, err := injectJPEGXMP([]byte{0xFF, 0xD8, 0xFF, 0xD9}, tooLarge); err == nil {
-		t.Fatal("expected oversized xmp error")
+	if _, err := Inject("missing", []byte("img"), []byte("xmp")); err == nil {
+		t.Fatal("expected missing injector error")
 	}
 }
 
-func TestEncodePNGWithXMP(t *testing.T) {
-	xmpData := []byte("<xmp/>")
-	data, err := EncodePNGWithXMP(xmpTestImage(), xmpData)
-	if err != nil {
-		t.Fatalf("encode png with xmp: %v", err)
-	}
-	if !bytes.Contains(data, []byte("iTXt")) || !bytes.Contains(data, xmpData) {
-		t.Fatal("expected png xmp chunk")
+func TestRegisterInjectFuncPanics(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func()
+	}{
+		{
+			name: "empty type",
+			fn: func() {
+				RegisterInjectFunc("", func(imageData, xmpData []byte) ([]byte, error) { return nil, nil })
+			},
+		},
+		{
+			name: "nil func",
+			fn: func() {
+				RegisterInjectFunc("test", nil)
+			},
+		},
 	}
 
-	plain, err := EncodePNGWithXMP(xmpTestImage(), nil)
-	if err != nil {
-		t.Fatalf("encode plain png: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("expected panic")
+				}
+			}()
+			tt.fn()
+		})
 	}
-	if bytes.Contains(plain, []byte("iTXt")) {
-		t.Fatal("unexpected iTXt chunk in plain png")
+}
+
+func TestInjectJPEG(t *testing.T) {
+	img := xmpTestImage()
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, nil); err != nil {
+		t.Fatalf("encode jpeg: %v", err)
 	}
 
-	if _, err := injectPNGiTXtChunk([]byte("bad"), pngXMPKeyword, xmpData); err == nil {
+	got, err := InjectJPEG(buf.Bytes(), []byte("<xmp/>"))
+	if err != nil {
+		t.Fatalf("inject jpeg: %v", err)
+	}
+	if !bytes.Contains(got, []byte(jpegXMPHeader)) {
+		t.Fatal("expected jpeg xmp header")
+	}
+
+	got, err = InjectJPEG(buf.Bytes(), nil)
+	if err != nil {
+		t.Fatalf("inject jpeg without xmp: %v", err)
+	}
+	if !bytes.Equal(got, buf.Bytes()) {
+		t.Fatal("empty xmp should return original jpeg data")
+	}
+
+	if _, err := InjectJPEG([]byte("bad"), []byte("x")); err == nil {
+		t.Fatal("expected invalid jpeg error")
+	}
+}
+
+func TestInjectJPEGWithAPP0(t *testing.T) {
+	jpegData := []byte{
+		0xFF, 0xD8,
+		0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00,
+		0xFF, 0xD9,
+	}
+	got, err := injectJPEGXMP(jpegData, []byte("x"))
+	if err != nil {
+		t.Fatalf("inject jpeg with app0: %v", err)
+	}
+	if !bytes.Equal(got[2:8], jpegData[2:8]) {
+		t.Fatal("expected xmp segment to be inserted after APP0")
+	}
+}
+
+func TestInjectPNG(t *testing.T) {
+	img := xmpTestImage()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+
+	got, err := InjectPNG(buf.Bytes(), []byte("<xmp/>"))
+	if err != nil {
+		t.Fatalf("inject png: %v", err)
+	}
+	if !bytes.Contains(got, []byte("iTXt")) || !bytes.Contains(got, []byte(pngXMPKeyword)) {
+		t.Fatal("expected png iTXt chunk")
+	}
+
+	got, err = InjectPNG(buf.Bytes(), nil)
+	if err != nil {
+		t.Fatalf("inject png without xmp: %v", err)
+	}
+	if !bytes.Equal(got, buf.Bytes()) {
+		t.Fatal("empty xmp should return original png data")
+	}
+
+	if _, err := InjectPNG([]byte("bad"), []byte("x")); err == nil {
 		t.Fatal("expected invalid png error")
 	}
-	if _, err := injectPNGiTXtChunk(append([]byte{137, 80, 78, 71, 13, 10, 26, 10}, make([]byte, 4)...), pngXMPKeyword, xmpData); err == nil {
+}
+
+func TestInjectPNGiTXtChunk(t *testing.T) {
+	img := xmpTestImage()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+
+	got, err := injectPNGiTXtChunk(buf.Bytes(), "keyword", []byte("payload"))
+	if err != nil {
+		t.Fatalf("inject itxt: %v", err)
+	}
+	if !bytes.Contains(got, []byte("keyword")) || !bytes.Contains(got, []byte("payload")) {
+		t.Fatal("expected keyword and payload in png data")
+	}
+
+	if _, err := injectPNGiTXtChunk([]byte("bad"), pngXMPKeyword, []byte("x")); err == nil {
+		t.Fatal("expected invalid png error")
+	}
+	if _, err := injectPNGiTXtChunk(append([]byte{137, 80, 78, 71, 13, 10, 26, 10}, make([]byte, 4)...), pngXMPKeyword, []byte("x")); err == nil {
 		t.Fatal("expected corrupt png error")
 	}
 	if chunk := pngChunk("tEXt", []byte("abc")); len(chunk) != 15 {
 		t.Fatalf("unexpected png chunk size: %d", len(chunk))
+	}
+}
+
+func TestInjectWEBP(t *testing.T) {
+	webp := append([]byte{
+		'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P',
+	}, riffChunk("VP8 ", []byte{0x9d, 0x01, 0x2a, 0x02, 0x00, 0x03, 0x00, 0, 0, 0})...)
+	binary.LittleEndian.PutUint32(webp[4:8], uint32(len(webp)-8))
+
+	got, err := InjectWEBP(webp, []byte("meta"))
+	if err != nil {
+		t.Fatalf("inject webp: %v", err)
+	}
+	if !bytes.Contains(got, []byte("XMP ")) {
+		t.Fatal("expected webp xmp chunk")
+	}
+
+	got, err = InjectWEBP(webp, nil)
+	if err != nil {
+		t.Fatalf("inject webp without xmp: %v", err)
+	}
+	if !bytes.Equal(got, webp) {
+		t.Fatal("empty xmp should return original webp data")
+	}
+
+	if _, err := InjectWEBP([]byte("bad"), []byte("x")); err == nil {
+		t.Fatal("expected invalid webp error")
 	}
 }
 
@@ -176,11 +314,20 @@ func TestWebPHelpers(t *testing.T) {
 		t.Fatalf("unexpected VP8X info: %v %v %v", dims, hasAlpha, err)
 	}
 
+	vp8Chunk := riffChunk("VP8 ", []byte{0x9d, 0x01, 0x2a, 0x02, 0x00, 0x03, 0x00, 0, 0, 0})
+	dims, hasAlpha, err = webpCanvasInfo(vp8Chunk)
+	if err != nil || dims != (image.Pt(2, 3)) || hasAlpha {
+		t.Fatalf("unexpected VP8 info: %v %v %v", dims, hasAlpha, err)
+	}
+
 	if _, _, err := webpCanvasInfo(riffChunk("VP8X", []byte{1})); err == nil {
 		t.Fatal("expected invalid VP8X error")
 	}
 	if _, _, err := webpCanvasInfo(riffChunk("VP8L", []byte{0})); err == nil {
 		t.Fatal("expected invalid VP8L error")
+	}
+	if _, _, err := webpCanvasInfo(riffChunk("VP8 ", []byte{1, 2, 3})); err == nil {
+		t.Fatal("expected invalid VP8 error")
 	}
 	if _, _, err := webpCanvasInfo([]byte("short")); err == nil {
 		t.Fatal("expected corrupt chunk error")

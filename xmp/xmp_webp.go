@@ -18,32 +18,18 @@ import (
 	"encoding/binary"
 	"errors"
 	"image"
-	"math"
-
-	"github.com/eringen/gowebper"
 )
 
-// EncodeWebPWithXMP encodes img as WebP and injects xmp into the RIFF payload.
-func EncodeWebPWithXMP(img image.Image, quality float32, xmp []byte) ([]byte, error) {
-	opts := &gowebper.Options{Level: gowebper.LevelDefault}
-	q := int(math.Round(float64(quality)))
-	if q > 0 {
-		if q > 100 {
-			q = 100
-		}
-		opts.Quality = q
-	}
+func init() {
+	RegisterInjectFunc("webp", InjectWEBP)
+}
 
-	payload, err := gowebper.EncodeToBytes(img, opts)
-	if err != nil {
-		return nil, err
+// InjectWEBP injects the XMP metadata into the RIFF payload of the WebP data.
+func InjectWEBP(webpData, xmpData []byte) ([]byte, error) {
+	if len(xmpData) == 0 {
+		return webpData, nil
 	}
-
-	if len(xmp) == 0 {
-		return payload, nil
-	}
-
-	return injectWebPXMP(payload, xmp)
+	return injectWebPXMP(webpData, xmpData)
 }
 
 func injectWebPXMP(data, xmp []byte) ([]byte, error) {

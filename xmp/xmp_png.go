@@ -19,23 +19,20 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
-	"image"
-	"image/png"
 )
 
 const pngXMPKeyword = "XML:com.adobe.xmp"
 
-// EncodePNGWithXMP encodes img as PNG and injects xmp into an iTXt chunk.
-func EncodePNGWithXMP(img image.Image, xmp []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := png.Encoder{CompressionLevel: png.DefaultCompression}
-	if err := enc.Encode(&buf, img); err != nil {
-		return nil, err
+func init() {
+	RegisterInjectFunc("png", InjectPNG)
+}
+
+// InjectPNG injects the XMP metadata into the iTXt chunk of the PNG data.
+func InjectPNG(pngData, xmpData []byte) ([]byte, error) {
+	if len(xmpData) == 0 {
+		return pngData, nil
 	}
-	if len(xmp) == 0 {
-		return buf.Bytes(), nil
-	}
-	return injectPNGiTXtChunk(buf.Bytes(), pngXMPKeyword, xmp)
+	return injectPNGiTXtChunk(pngData, pngXMPKeyword, xmpData)
 }
 
 func injectPNGiTXtChunk(data []byte, keyword string, text []byte) ([]byte, error) {

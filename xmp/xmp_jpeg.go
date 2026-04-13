@@ -15,25 +15,23 @@
 package xmp
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
-	"image"
-	"image/jpeg"
 )
 
 const jpegXMPHeader = "http://ns.adobe.com/xap/1.0/\x00"
 
-// EncodeJPEGWithXMP encodes img as JPEG and injects xmp into an APP1 segment.
-func EncodeJPEGWithXMP(img image.Image, quality int, xmp []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality}); err != nil {
-		return nil, err
+func init() {
+	RegisterInjectFunc("jpg", InjectJPEG)
+	RegisterInjectFunc("jpeg", InjectJPEG)
+}
+
+// InjectJPEG injects the XMP metadata into the APP1 segment of the JPEG data.
+func InjectJPEG(jpegData, xmpData []byte) ([]byte, error) {
+	if len(xmpData) == 0 {
+		return jpegData, nil
 	}
-	if len(xmp) == 0 {
-		return buf.Bytes(), nil
-	}
-	return injectJPEGXMP(buf.Bytes(), xmp)
+	return injectJPEGXMP(jpegData, xmpData)
 }
 
 func injectJPEGXMP(data, xmp []byte) ([]byte, error) {
