@@ -45,6 +45,10 @@ type TextWatermark struct {
 	DPI      float64
 }
 
+func (p Position) TextWatermark(opacity, scale float64) TextWatermark {
+	return TextWatermark{Position: p, Opacity: opacity, Scale: scale}
+}
+
 func (wm TextWatermark) WithText(text string) TextWatermark {
 	wm.Text = text
 	return wm

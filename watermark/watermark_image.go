@@ -33,6 +33,10 @@ type ImageWatermark struct {
 	MarkImage image.Image
 }
 
+func (p Position) ImageWatermark() ImageWatermark {
+	return ImageWatermark{Position: p}
+}
+
 func (wm ImageWatermark) WithMark(mark image.Image) ImageWatermark {
 	wm.MarkImage = mark
 	return wm
