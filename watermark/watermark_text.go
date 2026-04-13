@@ -15,6 +15,8 @@
 package watermark
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -23,17 +25,34 @@ import (
 	"strings"
 
 	"github.com/xgfone/go-imagex"
+	"github.com/xgfone/go-imagex/transform"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
 
+var _ transform.Transformer = TextWatermark{}
+
 // TextWatermark draws a text watermark onto an image.
 type TextWatermark struct {
+	// Font and Text are used by Transform.
+	Font *opentype.Font
+	Text string
+
 	Position Position
 	Opacity  float64
 	Scale    float64
 	DPI      float64
+}
+
+func (wm TextWatermark) WithText(text string) TextWatermark {
+	wm.Text = text
+	return wm
+}
+
+func (wm TextWatermark) WithFont(font *opentype.Font) TextWatermark {
+	wm.Font = font
+	return wm
 }
 
 func (wm *TextWatermark) setDefault() {
@@ -50,8 +69,26 @@ func (wm *TextWatermark) setDefault() {
 	}
 }
 
-// Font is required to create the font face based on the font size.
-func (wm TextWatermark) Draw(src image.Image, otfont *opentype.Font, text string) (dst image.Image, err error) {
+// Transform implements the transform.Transformer interface to apply text watermark to an image.
+//
+// It is equal to wm.Draw(img, wm.Font, wm.Text).
+func (wm TextWatermark) Transform(_ context.Context, img image.Image) (image.Image, error) {
+	return wm.draw(img, wm.Font, wm.Text)
+}
+
+// Draw applies the text watermark to an image and returns the result.
+func (wm TextWatermark) Draw(img image.Image, font *opentype.Font, text string) (image.Image, error) {
+	return wm.draw(img, font, text)
+}
+
+func (wm *TextWatermark) draw(src image.Image, otfont *opentype.Font, text string) (dst image.Image, err error) {
+	if otfont == nil {
+		return nil, errors.New("font is nil")
+	}
+	if text == "" {
+		return nil, errors.New("text is empty")
+	}
+
 	wm.setDefault()
 
 	// Choose the layout direction and derive a font size from the base image.

@@ -15,6 +15,7 @@
 package watermark
 
 import (
+	"context"
 	"image"
 	"image/color"
 	"testing"
@@ -66,7 +67,7 @@ func TestPositionHelpers(t *testing.T) {
 func TestImageWatermarkDraw(t *testing.T) {
 	src := wmBaseImage(6, 4)
 	mark := coloredMark(2, 1, color.NRGBA{200, 10, 10, 255})
-	out := ImageWatermark{Position: Position{Position: PositionTopRight}}.Draw(src, mark)
+	out, _ := ImageWatermark{Position: Position{Position: PositionTopRight}, MarkImage: mark}.Transform(context.Background(), src)
 	got := color.NRGBAModel.Convert(out.At(4, 0)).(color.NRGBA)
 	if got.R == 20 {
 		t.Fatalf("expected watermark at top-right, got %v", got)

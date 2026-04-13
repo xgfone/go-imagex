@@ -15,15 +15,39 @@
 package watermark
 
 import (
+	"context"
 	"image"
 	"image/draw"
 
 	"github.com/xgfone/go-imagex"
+	"github.com/xgfone/go-imagex/transform"
 )
+
+var _ transform.Transformer = ImageWatermark{}
 
 // ImageWatermark draws an image watermark onto another image.
 type ImageWatermark struct {
 	Position Position
+
+	// MarkImage used by Transform.
+	MarkImage image.Image
+}
+
+func (wm ImageWatermark) WithMark(mark image.Image) ImageWatermark {
+	wm.MarkImage = mark
+	return wm
+}
+
+func (wm ImageWatermark) WithPosition(pos Position) ImageWatermark {
+	wm.Position = pos
+	return wm
+}
+
+// Transform implements the Transformer interface to overlay mark onto src and returns the result.
+//
+// MarkImage is required.
+func (wm ImageWatermark) Transform(_ context.Context, img image.Image) (image.Image, error) {
+	return wm.Draw(img, wm.MarkImage), nil
 }
 
 // Draw overlays mark onto src and returns the result.
