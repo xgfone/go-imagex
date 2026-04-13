@@ -102,7 +102,7 @@ func Resize(src image.Image, scale float64) image.Image {
 	}
 
 	dst := image.NewNRGBA(image.Rect(0, 0, newW, newH))
-	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+	xdraw.NearestNeighbor.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
 	return dst
 }
 
