@@ -39,6 +39,23 @@ type AIGC struct {
 	ReserveCode2 string `json:",omitempty"`
 }
 
+// IsZero returns true if the AIGC metadata is empty.
+func (aigc AIGC) IsZero() bool {
+	return aigc == (AIGC{})
+}
+
+// WithProduceID sets the produce ID and returns the updated AIGC.
+func (aigc AIGC) WithProduceID(produceID string) AIGC {
+	aigc.ProduceID = produceID
+	return aigc
+}
+
+// WithPropagatorID sets the propagator ID and returns the updated AIGC.
+func (aigc AIGC) WithPropagatorID(PropagatorID string) AIGC {
+	aigc.PropagatorID = PropagatorID
+	return aigc
+}
+
 // BuildXMPPacketData builds the XMP packet and returns it as bytes.
 func (aigc AIGC) BuildXMPPacketData(nsPrefix, nsURI string) (data []byte, err error) {
 	var buf bytes.Buffer
