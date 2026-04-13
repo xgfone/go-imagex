@@ -19,10 +19,29 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+)
+
+var (
+	systemDirsValue    = sync.OnceValue(getSystemDirs)
+	systemEntriesValue = sync.OnceValues(getSystemEntries)
 )
 
 // GetSystemDirs returns the common system font directories for the OS.
 func GetSystemDirs() []string {
+	return systemDirsValue()
+}
+
+// GetSystemEntries returns the font entries for the system font directories.
+func GetSystemEntries() ([]Entry, error) {
+	return systemEntriesValue()
+}
+
+func getSystemEntries() ([]Entry, error) {
+	return ScanDirs(GetSystemDirs())
+}
+
+func getSystemDirs() []string {
 	dirs := make([]string, 0, 6)
 	home, _ := os.UserHomeDir()
 
