@@ -37,9 +37,9 @@ func (f EncodeFunc) Encode(ctx context.Context, w io.Writer, img image.Image) er
 }
 
 // NewJPEGEncoder returns a new JPEG encoder.
-func NewJPEGEncoder(quality int) Encoder {
+func NewJPEGEncoder() Encoder {
 	return EncodeFunc(func(_ context.Context, w io.Writer, img image.Image) error {
-		return jpeg.Encode(w, img, &jpeg.Options{Quality: quality})
+		return jpeg.Encode(w, img, &jpeg.Options{Quality: 95})
 	})
 }
 
