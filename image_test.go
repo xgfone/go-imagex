@@ -16,6 +16,7 @@ package imagex
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -149,5 +150,66 @@ func TestLoadSupportsJPEG(t *testing.T) {
 	}
 	if _, err := Load(bytes.NewReader(buf.Bytes()), 1); err != nil {
 		t.Fatalf("load jpeg: %v", err)
+	}
+}
+
+func TestDecodeDataURI(t *testing.T) {
+	tests := []struct {
+		name    string
+		dataURI string
+		want    string // expected decoded string for easy comparison
+		wantErr bool
+	}{
+		{
+			name:    "valid DataURI with jpeg",
+			dataURI: "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString([]byte("hello")),
+			want:    "hello",
+			wantErr: false,
+		},
+		{
+			name:    "valid DataURI with png",
+			dataURI: "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte("world")),
+			want:    "world",
+			wantErr: false,
+		},
+		{
+			name:    "raw base64 without prefix",
+			dataURI: base64.StdEncoding.EncodeToString([]byte("raw data")),
+			want:    "raw data",
+			wantErr: false,
+		},
+		{
+			name:    "invalid base64 string",
+			dataURI: "not base64!!!",
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name:    "DataURI with extra params after image type (ignored)",
+			dataURI: "data:image/webp;base64," + base64.StdEncoding.EncodeToString([]byte("webp")),
+			want:    "webp",
+			wantErr: false,
+		},
+		{
+			name:    "DataURI with missing base64 marker",
+			dataURI: "data:image/jpeg;charset=utf8,abc",
+			want:    "abc", // falls back to decoding the whole string as raw base64 -> will error because "abc" is not valid base64
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := DecodeDataURI(tt.dataURI)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DecodeDataURI() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if string(got) != tt.want {
+					t.Errorf("DecodeDataURI() got = %q, want %q", string(got), tt.want)
+				}
+			}
+		})
 	}
 }

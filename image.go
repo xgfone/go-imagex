@@ -16,6 +16,7 @@
 package imagex
 
 import (
+	"encoding/base64"
 	"fmt"
 	"image"
 	"image/color"
@@ -28,6 +29,19 @@ import (
 
 	xdraw "golang.org/x/image/draw"
 )
+
+// DecodeDataURI extracts and decodes the base64 image data from a Data URI.
+//
+// If dataURI doesn't have the "data:image/...;base64," prefix,
+// it decodes the whole string as raw base64.
+func DecodeDataURI(dataURI string) ([]byte, error) {
+	if strings.HasPrefix(dataURI, "data:image/") {
+		if index := strings.Index(dataURI, ";base64,"); index > 0 {
+			dataURI = dataURI[index+len(";base64,"):]
+		}
+	}
+	return base64.StdEncoding.DecodeString(dataURI)
+}
 
 // Load decodes an image from r and optionally applies opacity to it.
 func Load(r io.Reader, opacity float64) (image.Image, error) {
