@@ -16,6 +16,37 @@ package orientation
 
 import "image"
 
+// OrientationFunc returns a transform function that performs the EXIF orientation
+// transform corresponding to the given orientation value. The returned function
+// can be applied to any image to produce the oriented result.
+func OrientationFunc(orientation int) func(src image.Image) image.Image {
+	switch orientation {
+	case 2:
+		return flipHorizontal
+
+	case 3:
+		return rotate180
+
+	case 4:
+		return flipVertical
+
+	case 5:
+		return transposeMainDiagonal
+
+	case 6:
+		return rotate90CW
+
+	case 7:
+		return transposeAntiDiagonal
+
+	case 8:
+		return rotate90CCW
+
+	default:
+		return noop
+	}
+}
+
 // ApplyOrientation applies the EXIF orientation transform to img.
 func ApplyOrientation(img image.Image, orientation int) image.Image {
 	switch orientation {
@@ -43,6 +74,10 @@ func ApplyOrientation(img image.Image, orientation int) image.Image {
 	default:
 		return img
 	}
+}
+
+func noop(src image.Image) image.Image {
+	return src
 }
 
 func flipHorizontal(src image.Image) image.Image {
