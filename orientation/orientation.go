@@ -49,31 +49,7 @@ func OrientationFunc(orientation int) func(src image.Image) image.Image {
 
 // ApplyOrientation applies the EXIF orientation transform to img.
 func ApplyOrientation(img image.Image, orientation int) image.Image {
-	switch orientation {
-	case 2:
-		return flipHorizontal(img)
-
-	case 3:
-		return rotate180(img)
-
-	case 4:
-		return flipVertical(img)
-
-	case 5:
-		return transposeMainDiagonal(img)
-
-	case 6:
-		return rotate90CW(img)
-
-	case 7:
-		return transposeAntiDiagonal(img)
-
-	case 8:
-		return rotate90CCW(img)
-
-	default:
-		return img
-	}
+	return OrientationFunc(orientation)(img)
 }
 
 func noop(src image.Image) image.Image {
