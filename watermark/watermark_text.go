@@ -59,6 +59,21 @@ func (wm TextWatermark) WithFont(font *opentype.Font) TextWatermark {
 	return wm
 }
 
+func (wm TextWatermark) WithScale(scale float64) TextWatermark {
+	wm.Scale = scale
+	return wm
+}
+
+func (wm TextWatermark) WithOpacity(opacity float64) TextWatermark {
+	wm.Opacity = opacity
+	return wm
+}
+
+func (wm TextWatermark) WithPosition(pos Position) TextWatermark {
+	wm.Position = pos
+	return wm
+}
+
 func (wm *TextWatermark) setDefault() {
 	if wm.Opacity <= 0 {
 		wm.Opacity = 0.7
