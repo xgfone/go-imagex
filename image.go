@@ -45,43 +45,59 @@ func DecodeDataURI(dataURI string) ([]byte, error) {
 
 // Load decodes an image from r and optionally applies opacity to it.
 func Load(r io.Reader, opacity float64) (image.Image, error) {
-	img, _, err := image.Decode(r)
+	img, _, err := LoadWithFormat(r, opacity)
+	return img, err
+}
+
+// LoadWithFormat decodes an image with the format from r and optionally applies opacity to it.
+func LoadWithFormat(r io.Reader, opacity float64) (img image.Image, format string, err error) {
+	img, format, err = image.Decode(r)
 	if err != nil {
-		return nil, fmt.Errorf("fail to decode the image: %w", err)
+		err = fmt.Errorf("fail to decode the image: %w", err)
+		return
 	}
 
 	if opacity > 0 && opacity < 1 {
 		img = ApplyOpacity(img, opacity)
 	}
 
-	return img, nil
+	return
 }
 
 // LoadFile loads an image from a local path or an HTTP(S) URL.
 func LoadFile(path string, opacity float64) (image.Image, error) {
+	img, _, err := LoadFileWithFormat(path, opacity)
+	return img, err
+}
+
+// LoadFileWithFormat loads an image with the format from a local path or an HTTP(S) URL.
+func LoadFileWithFormat(path string, opacity float64) (img image.Image, format string, err error) {
 	var f io.ReadCloser
 	if strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "http://") {
-		resp, err := http.Get(path)
-		switch {
+		var resp *http.Response
+		switch resp, err = http.Get(path); {
 		case err != nil:
-			return nil, fmt.Errorf("fail to open the image from url: %w", err)
+			err = fmt.Errorf("fail to open the image from url: %w", err)
+			return
 
 		case resp.StatusCode != 200:
-			return nil, fmt.Errorf("fail to open the image from url: statuscode=%d", resp.StatusCode)
+			err = fmt.Errorf("fail to open the image from url: statuscode=%d", resp.StatusCode)
+			return
 
 		default:
 			f = resp.Body
 		}
 	} else {
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, fmt.Errorf("fail to open the image from file: %w", err)
+		var file *os.File
+		if file, err = os.Open(path); err != nil {
+			err = fmt.Errorf("fail to open the image from file: %w", err)
+			return
 		}
 		f = file
 	}
 
 	defer f.Close()
-	return Load(f, opacity)
+	return LoadWithFormat(f, opacity)
 }
 
 // ToNRGBA returns a cloned NRGBA image for img.
