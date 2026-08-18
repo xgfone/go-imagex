@@ -30,9 +30,11 @@ func testImage() *image.NRGBA {
 }
 
 func TestTransformFunc(t *testing.T) {
+	type _KEY string
+
 	src := testImage()
 	tf := TransformFunc(func(ctx context.Context, img image.Image) (image.Image, error) {
-		if ctx.Value("k") != "v" {
+		if ctx.Value(_KEY("k")) != "v" {
 			t.Fatal("context value not passed through")
 		}
 		out := image.NewNRGBA(img.Bounds())
@@ -41,7 +43,7 @@ func TestTransformFunc(t *testing.T) {
 		return out, nil
 	})
 
-	got, err := tf.Transform(context.WithValue(context.Background(), "k", "v"), src)
+	got, err := tf.Transform(context.WithValue(context.Background(), _KEY("k"), "v"), src)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
