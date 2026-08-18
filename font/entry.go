@@ -40,8 +40,6 @@ type Entry struct {
 	normStemName string
 	normPsName   string
 	normFamily   string
-
-	font *opentype.Font
 }
 
 // NewEntry builds a font entry and caches its searchable names.
