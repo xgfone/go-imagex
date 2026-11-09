@@ -124,6 +124,26 @@ func TestImageHelpers(t *testing.T) {
 	}
 }
 
+func TestCloneNRGBASubImage(t *testing.T) {
+	src := solidNRGBA(3, 2, color.NRGBA{R: 9, A: 255})
+	first := color.NRGBA{R: 20, A: 255}
+	second := color.NRGBA{R: 40}
+	src.SetNRGBA(1, 0, first)
+	src.SetNRGBA(1, 1, second)
+	view := src.SubImage(image.Rect(1, 0, 2, 2)).(*image.NRGBA)
+
+	cloned := CloneNRGBA(view)
+	if got := cloned.Bounds(); got != image.Rect(0, 0, 1, 2) {
+		t.Fatalf("clone bounds = %v, want (0,0)-(1,2)", got)
+	}
+	if got := cloned.NRGBAAt(0, 0); got != first {
+		t.Errorf("first row pixel = %v, want %v", got, first)
+	}
+	if got := cloned.NRGBAAt(0, 1); got != second {
+		t.Errorf("second row pixel = %v, want %v", got, second)
+	}
+}
+
 func TestAlpha255(t *testing.T) {
 	tests := []struct {
 		in   float64

@@ -118,8 +118,9 @@ func CloneNRGBA(src *image.NRGBA) *image.NRGBA {
 		return nil
 	}
 
-	out := image.NewNRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
-	copy(out.Pix, src.Pix)
+	b := src.Bounds()
+	out := image.NewNRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(out, out.Bounds(), src, b.Min, draw.Src)
 	return out
 }
 
