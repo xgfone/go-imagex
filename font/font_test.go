@@ -96,6 +96,29 @@ func TestScanDirsAndHelpers(t *testing.T) {
 	}
 }
 
+func TestScanDirsFollowsRootSymlink(t *testing.T) {
+	root := t.TempDir()
+	const name = "regular.ttf"
+	if err := os.WriteFile(filepath.Join(root, name), goregular.TTF, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "fonts")
+	if err := os.Symlink(root, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	entries, err := ScanDirs([]string{link})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("found %d entries through linked root, want 1", len(entries))
+	}
+	if got, want := entries[0].Path, filepath.Join(link, name); got != want {
+		t.Fatalf("font path = %q, want %q", got, want)
+	}
+}
+
 func TestScanFileErrorsAndFallbacks(t *testing.T) {
 	if _, err := ScanFile(filepath.Join(t.TempDir(), "missing.ttf"), nil); err == nil {
 		t.Fatal("expected read error")

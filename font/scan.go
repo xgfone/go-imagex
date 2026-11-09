@@ -45,12 +45,12 @@ func ScanDirs(dirs []string) ([]Entry, error) {
 		}
 
 		// Walk each existing font directory and collect supported files.
-		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		err = fs.WalkDir(os.DirFS(root), ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !IsSupportedFontFile(path) {
 				return err
 			}
 
-			fontfiles, err = ScanFile(path, fontfiles)
+			fontfiles, err = ScanFile(filepath.Join(root, filepath.FromSlash(path)), fontfiles)
 			return err
 		})
 
