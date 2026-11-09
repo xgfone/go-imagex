@@ -145,9 +145,8 @@ func (wm TextWatermark) DrawVerticalText(src image.Image, face font.Face, text s
 func (wm *TextWatermark) drawHorizontalText(src image.Image, face font.Face, text string) image.Image {
 	wm.setDefault()
 
-	w, hgt := measureText(face, text)
-	pos := wm.Position.calculatePosition(src.Bounds().Size(), image.Pt(w, hgt))
 	patch := renderTextPatch(face, text, textFillColor(wm.Opacity), textShadowColor(wm.Opacity), image.Pt(1, 1))
+	pos := wm.Position.calculatePosition(src.Bounds().Size(), patch.Bounds().Size())
 
 	out := imagex.ToNRGBA(src)
 	rect := image.Rectangle{Min: pos, Max: pos.Add(patch.Bounds().Size())}
@@ -172,6 +171,7 @@ func (wm *TextWatermark) drawVerticalText(src image.Image, face font.Face, text 
 	// Measure each display unit first so we can compute the overall vertical layout.
 	metrics := make([]unitMetric, 0, len(units))
 	maxUnitWidth := 0
+	maxPatchWidth := 0
 	heightSum := 0
 	for _, unit := range units {
 		rawW, rawH := measureText(face, unit)
@@ -182,6 +182,7 @@ func (wm *TextWatermark) drawVerticalText(src image.Image, face font.Face, text 
 
 		patch := renderTextPatch(face, unit, textFillColor(wm.Opacity), textShadowColor(wm.Opacity), image.Pt(1, 1))
 		maxUnitWidth = max(maxUnitWidth, rawW)
+		maxPatchWidth = max(maxPatchWidth, patch.Bounds().Dx())
 		heightSum += rawH
 		metrics = append(metrics, unitMetric{rawWidth: rawW, effectiveH: effectiveH, patch: patch})
 	}
@@ -192,17 +193,14 @@ func (wm *TextWatermark) drawVerticalText(src image.Image, face font.Face, text 
 	}
 
 	unitSpacing := int(float64(avgUnitHeight) * 0.2)
-	totalHeight := 0
+	totalHeight, offsetY := 0, 0
 	for _, m := range metrics {
-		totalHeight += m.effectiveH
-	}
-
-	if len(metrics) > 1 {
-		totalHeight += unitSpacing * (len(metrics) - 1)
+		totalHeight = max(totalHeight, offsetY+m.patch.Bounds().Dy())
+		offsetY += m.effectiveH + unitSpacing
 	}
 
 	// Draw each unit centered within the vertical watermark column.
-	pos := wm.Position.calculatePosition(src.Bounds().Size(), image.Pt(maxUnitWidth, totalHeight))
+	pos := wm.Position.calculatePosition(src.Bounds().Size(), image.Pt(maxPatchWidth, totalHeight))
 	centerX := pos.X + maxUnitWidth/2
 	y := pos.Y
 

@@ -125,6 +125,39 @@ func TestTextWatermarkDraw(t *testing.T) {
 	}
 }
 
+func TestTextWatermarkKeepsShadowAtBottomRight(t *testing.T) {
+	font, err := opentype.Parse(goregular.TTF)
+	if err != nil {
+		t.Fatal(err)
+	}
+	face, err := opentype.NewFace(font, &opentype.FaceOptions{Size: 24, DPI: 72})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeFontFace(face)
+
+	countVisible := func(img image.Image) (count int) {
+		for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
+			for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+				if _, _, _, a := img.At(x, y).RGBA(); a != 0 {
+					count++
+				}
+			}
+		}
+		return count
+	}
+
+	src := image.NewNRGBA(image.Rect(0, 0, 100, 80))
+	center := TextWatermark{Position: Position{Position: PositionCenter}, Opacity: 1}
+	corner := center.WithPosition(Position{Position: PositionBottomRight})
+	if got, want := countVisible(corner.DrawHorizontalText(src, face, "Ag")), countVisible(center.DrawHorizontalText(src, face, "Ag")); got != want || want == 0 {
+		t.Errorf("horizontal bottom-right coverage = %d, centered coverage = %d", got, want)
+	}
+	if got, want := countVisible(corner.DrawVerticalText(src, face, "Ag*")), countVisible(center.DrawVerticalText(src, face, "Ag*")); got != want || want == 0 {
+		t.Errorf("vertical bottom-right coverage = %d, centered coverage = %d", got, want)
+	}
+}
+
 func sameImage(a, b image.Image) bool {
 	if a.Bounds() != b.Bounds() {
 		return false
