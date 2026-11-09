@@ -44,13 +44,17 @@ func ScanDirs(dirs []string) ([]Entry, error) {
 			continue
 		}
 
-		// Walk each existing font directory and collect supported files.
+		// Preserve the root path used by DirFS when opening discovered files.
+		prefix := root
+		if !os.IsPathSeparator(prefix[len(prefix)-1]) {
+			prefix += string(os.PathSeparator)
+		}
 		err = fs.WalkDir(os.DirFS(root), ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !IsSupportedFontFile(path) {
 				return err
 			}
 
-			fontfiles, err = ScanFile(filepath.Join(root, filepath.FromSlash(path)), fontfiles)
+			fontfiles, err = ScanFile(prefix+filepath.FromSlash(path), fontfiles)
 			return err
 		})
 

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 )
@@ -116,6 +117,37 @@ func TestScanDirsFollowsRootSymlink(t *testing.T) {
 	}
 	if got, want := entries[0].Path, filepath.Join(link, name); got != want {
 		t.Fatalf("font path = %q, want %q", got, want)
+	}
+}
+
+func TestScanDirsPreservesParentAfterSymlink(t *testing.T) {
+	fontPath := writeTempFont(t)
+	target := filepath.Join(filepath.Dir(fontPath), "sub")
+	if err := os.Mkdir(target, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	name := filepath.Base(fontPath)
+	if err := os.WriteFile(filepath.Join(dir, name), gobold.TTF, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	sep := string(os.PathSeparator)
+	root := link + sep + ".."
+	want, err := ScanFile(root+sep+name, nil)
+	if err != nil || len(want) != 1 {
+		t.Fatalf("scan font directly: got %d entries, err = %v", len(want), err)
+	}
+	got, err := ScanDirs([]string{root})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("scan directory: got %d entries, err = %v", len(got), err)
+	}
+	if got[0].fullName != want[0].fullName {
+		t.Fatalf("scanned font = %q, want %q", got[0].fullName, want[0].fullName)
 	}
 }
 
