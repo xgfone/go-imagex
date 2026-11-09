@@ -21,6 +21,8 @@ import (
 	"slices"
 )
 
+const vp8xPayloadSize = 10
+
 func init() {
 	RegisterInjectFunc("webp", InjectWEBP)
 }
@@ -57,7 +59,7 @@ func injectWebPXMP(data, xmp []byte) ([]byte, error) {
 
 		fourcc := string(chunks[off : off+4])
 		if fourcc == "VP8X" {
-			if sz < 10 || vp8xIndex >= 0 {
+			if sz != vp8xPayloadSize || vp8xIndex >= 0 {
 				return nil, errors.New("invalid VP8X chunk")
 			}
 			vp8xIndex = len(out)
@@ -77,7 +79,7 @@ func injectWebPXMP(data, xmp []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		var payload [10]byte
+		var payload [vp8xPayloadSize]byte
 		payload[0] = 0x04 // XMP flag
 		if hasAlpha {
 			payload[0] |= 0x10
@@ -130,7 +132,7 @@ func webpCanvasInfo(chunks []byte) (image.Point, bool, error) {
 		data := chunks[off+8 : off+8+sz]
 		switch fourcc {
 		case "VP8X":
-			if len(data) < 10 {
+			if len(data) != vp8xPayloadSize {
 				return image.Point{}, false, errors.New("invalid VP8X chunk")
 			}
 

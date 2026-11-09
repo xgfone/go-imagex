@@ -265,7 +265,7 @@ func TestInjectWEBP(t *testing.T) {
 }
 
 func TestInjectWEBPRejectsInvalidVP8XSize(t *testing.T) {
-	for size := range 10 {
+	for _, size := range []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11} {
 		data := append([]byte("RIFF\x00\x00\x00\x00WEBP"), riffChunk("VP8X", make([]byte, size))...)
 		binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
 		if _, err := InjectWEBP(data, []byte("meta")); err == nil {
@@ -359,8 +359,10 @@ func TestWebPHelpers(t *testing.T) {
 		t.Fatalf("unexpected VP8 info: %v %v %v", dims, hasAlpha, err)
 	}
 
-	if _, _, err := webpCanvasInfo(riffChunk("VP8X", []byte{1})); err == nil {
-		t.Fatal("expected invalid VP8X error")
+	for _, size := range []int{1, 11} {
+		if _, _, err := webpCanvasInfo(riffChunk("VP8X", make([]byte, size))); err == nil {
+			t.Errorf("expected invalid VP8X error for %d-byte payload", size)
+		}
 	}
 	if _, _, err := webpCanvasInfo(riffChunk("VP8L", []byte{0})); err == nil {
 		t.Fatal("expected invalid VP8L error")
