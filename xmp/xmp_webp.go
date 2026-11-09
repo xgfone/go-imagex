@@ -42,13 +42,16 @@ func injectWebPXMP(data, xmp []byte) ([]byte, error) {
 	vp8xIndex := -1
 	for off := 0; off+8 <= len(chunks); {
 		fourcc := string(chunks[off : off+4])
-		sz := int(binary.LittleEndian.Uint32(chunks[off+4 : off+8]))
-		chunkTotal := 8 + sz + (sz % 2)
-		if off+chunkTotal > len(chunks) {
-			return nil, errors.New("corrupt webp chunks")
+		sz, chunkTotal, err := webpChunkSize(chunks[off:])
+		if err != nil {
+			return nil, err
 		}
 
 		if fourcc == "VP8X" {
+			if sz < 10 {
+				return nil, errors.New("invalid VP8X chunk")
+			}
+
 			hasVP8X = true
 			vp8xIndex = off
 			break
@@ -110,14 +113,26 @@ func riffChunk(fourcc string, payload []byte) []byte {
 	return out
 }
 
+// webpChunkSize validates the payload and its padding before converting to int.
+func webpChunkSize(chunk []byte) (size, total int, err error) {
+	if len(chunk) < 8 {
+		return 0, 0, errors.New("corrupt webp chunks")
+	}
+	n := uint64(binary.LittleEndian.Uint32(chunk[4:8]))
+	padded := 8 + n + n%2
+	if padded > uint64(len(chunk)) {
+		return 0, 0, errors.New("corrupt webp chunks")
+	}
+	return int(n), int(padded), nil
+}
+
 func webpCanvasInfo(chunks []byte) (image.Point, bool, error) {
 	hasAlpha := false
 	for off := 0; off+8 <= len(chunks); {
 		fourcc := string(chunks[off : off+4])
-		sz := int(binary.LittleEndian.Uint32(chunks[off+4 : off+8]))
-		chunkTotal := 8 + sz + (sz % 2)
-		if off+chunkTotal > len(chunks) {
-			return image.Point{}, false, errors.New("corrupt webp data")
+		sz, chunkTotal, err := webpChunkSize(chunks[off:])
+		if err != nil {
+			return image.Point{}, false, err
 		}
 
 		data := chunks[off+8 : off+8+sz]

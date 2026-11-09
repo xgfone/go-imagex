@@ -261,6 +261,21 @@ func TestInjectWEBP(t *testing.T) {
 	}
 }
 
+func TestInjectWEBPRejectsInvalidVP8XSize(t *testing.T) {
+	for size := range 10 {
+		data := append([]byte("RIFF\x00\x00\x00\x00WEBP"), riffChunk("VP8X", make([]byte, size))...)
+		binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
+		if _, err := InjectWEBP(data, []byte("meta")); err == nil {
+			t.Errorf("VP8X with %d-byte payload should fail", size)
+		}
+	}
+
+	data := []byte("RIFF\x0c\x00\x00\x00WEBPVP8X\xff\xff\xff\xff")
+	if _, err := InjectWEBP(data, []byte("meta")); err == nil {
+		t.Error("VP8X with a declared payload larger than the file should fail")
+	}
+}
+
 func TestInjectWebPXMP(t *testing.T) {
 	vp8 := append([]byte{
 		'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P',
