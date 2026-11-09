@@ -158,6 +158,23 @@ func TestImageHelpers(t *testing.T) {
 	}
 }
 
+func TestDropAlphaHandlesDecodedTransparentFormats(t *testing.T) {
+	bounds := image.Rect(0, 0, 1, 1)
+	indexed := image.NewPaletted(bounds, color.Palette{color.Transparent, color.Black})
+	ycbcra := image.NewNYCbCrA(bounds, image.YCbCrSubsampleRatio444)
+	for _, img := range []image.Image{indexed, ycbcra} {
+		got := DropAlpha(img)
+		if r, g, b, a := got.At(0, 0).RGBA(); r != 0xffff || g != 0xffff || b != 0xffff || a != 0xffff {
+			t.Errorf("DropAlpha(%T) produced (%#x, %#x, %#x, %#x), want opaque white", img, r, g, b, a)
+		}
+	}
+
+	indexed.SetColorIndex(0, 0, 1)
+	if got := DropAlpha(indexed); got != indexed {
+		t.Error("opaque palette should be reused")
+	}
+}
+
 func TestCloneNRGBASubImage(t *testing.T) {
 	src := solidNRGBA(3, 2, color.NRGBA{R: 9, A: 255})
 	first := color.NRGBA{R: 20, A: 255}

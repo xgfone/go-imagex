@@ -161,9 +161,14 @@ func DropAlpha(img image.Image) image.Image {
 	switch img.(type) {
 	case *image.RGBA, *image.NRGBA, *image.RGBA64, *image.NRGBA64, *image.Alpha, *image.Alpha16:
 		return flattenToRGB(img)
-	default:
-		return img
+
+	case *image.Paletted, *image.NYCbCrA:
+		if !img.(interface{ Opaque() bool }).Opaque() {
+			return flattenToRGB(img)
+		}
 	}
+
+	return img
 }
 
 func flattenToRGB(img image.Image) *image.RGBA {
