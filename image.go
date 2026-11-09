@@ -81,6 +81,7 @@ func LoadFileWithFormat(path string, opacity float64) (img image.Image, format s
 			return
 
 		case resp.StatusCode != 200:
+			_ = resp.Body.Close()
 			err = fmt.Errorf("fail to open the image from url: statuscode=%d", resp.StatusCode)
 			return
 

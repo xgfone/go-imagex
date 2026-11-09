@@ -21,6 +21,8 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,6 +75,38 @@ func TestLoadErrors(t *testing.T) {
 
 	if _, err := LoadFile("http://127.0.0.1:0/unreachable.png", 1); err == nil {
 		t.Fatal("expected url open error")
+	}
+}
+
+type imageTestTransport func(*http.Request) (*http.Response, error)
+
+func (f imageTestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type imageTestBody struct {
+	io.Reader
+	closed bool
+}
+
+func (b *imageTestBody) Close() error {
+	b.closed = true
+	return nil
+}
+
+func TestLoadFileClosesErrorResponseBody(t *testing.T) {
+	body := &imageTestBody{Reader: bytes.NewBufferString("forbidden")}
+	client := http.DefaultClient
+	t.Cleanup(func() { http.DefaultClient = client })
+	http.DefaultClient = &http.Client{Transport: imageTestTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusForbidden, Body: body}, nil
+	})}
+
+	if _, err := LoadFile("http://example.invalid/image", 0); err == nil {
+		t.Error("expected HTTP status error")
+	}
+	if !body.closed {
+		t.Error("expected the error response body to be closed")
 	}
 }
 
