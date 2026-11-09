@@ -276,6 +276,27 @@ func TestInjectWEBPRejectsInvalidVP8XSize(t *testing.T) {
 	}
 }
 
+func TestInjectWEBPReplacesExistingXMP(t *testing.T) {
+	header := []byte("RIFF\x00\x00\x00\x00WEBP")
+	vp8x := riffChunk("VP8X", []byte{0x0c, 0, 0, 0, 1, 0, 0, 2, 0, 0})
+	vp8 := riffChunk("VP8 ", []byte{0, 0, 0, 0x9d, 0x01, 0x2a, 2, 0, 3, 0})
+	exif := riffChunk("EXIF", []byte("exif metadata"))
+	src := bytes.Join([][]byte{header, vp8x, vp8, riffChunk("XMP ", []byte("old")), exif}, nil)
+	binary.LittleEndian.PutUint32(src[4:8], uint32(len(src)-8))
+	src = append(src, 0x99) // Data outside the declared RIFF container.
+
+	got, err := InjectWEBP(src, []byte("new metadata"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bytes.Join([][]byte{header, vp8x, vp8, exif, riffChunk("XMP ", []byte("new metadata"))}, nil)
+	binary.LittleEndian.PutUint32(want[4:8], uint32(len(want)-8))
+	want = append(want, 0x99)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("unexpected WebP after replacing XMP: %x", got)
+	}
+}
+
 func TestInjectWebPXMP(t *testing.T) {
 	vp8 := append([]byte{
 		'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P',

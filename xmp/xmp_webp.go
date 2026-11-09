@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"image"
+	"slices"
 )
 
 func init() {
@@ -37,67 +38,58 @@ func injectWebPXMP(data, xmp []byte) ([]byte, error) {
 		return nil, errors.New("invalid webp data")
 	}
 
-	chunks := data[12:]
-	hasVP8X := false
+	riffSize := uint64(binary.LittleEndian.Uint32(data[4:8]))
+	if riffSize < 4 || riffSize > uint64(len(data)-8) {
+		return nil, errors.New("invalid webp RIFF size")
+	}
+	chunksEnd := 8 + int(riffSize)
+	chunks := data[12:chunksEnd]
+	newChunk := riffChunk("XMP ", xmp)
+	out := make([]byte, 0, len(data)+len(newChunk)+18)
+	out = append(out, data[:12]...)
+
 	vp8xIndex := -1
-	for off := 0; off+8 <= len(chunks); {
-		fourcc := string(chunks[off : off+4])
+	for off := 0; off < len(chunks); {
 		sz, chunkTotal, err := webpChunkSize(chunks[off:])
 		if err != nil {
 			return nil, err
 		}
 
+		fourcc := string(chunks[off : off+4])
 		if fourcc == "VP8X" {
-			if sz < 10 {
+			if sz < 10 || vp8xIndex >= 0 {
 				return nil, errors.New("invalid VP8X chunk")
 			}
-
-			hasVP8X = true
-			vp8xIndex = off
-			break
+			vp8xIndex = len(out)
+		}
+		if fourcc != "XMP " {
+			out = append(out, chunks[off:off+chunkTotal]...)
 		}
 
 		off += chunkTotal
 	}
 
-	newChunk := riffChunk("XMP ", xmp)
-	out := make([]byte, 0, len(data)+len(newChunk)+18)
-	out = append(out, data[:12]...)
-
-	if hasVP8X {
-		// Reuse the existing VP8X chunk and only enable the XMP feature bit.
-		updated := append([]byte(nil), chunks...)
-		updated[vp8xIndex+8] |= 0x04 // XMP flag
-		out = append(out, updated...)
-		out = append(out, newChunk...)
-		binary.LittleEndian.PutUint32(out[4:8], uint32(len(out)-8))
-		return out, nil
+	if vp8xIndex >= 0 {
+		out[vp8xIndex+8] |= 0x04 // XMP flag
+	} else {
+		// Older/simple files may not have VP8X, so synthesize one from the canvas info.
+		dims, hasAlpha, err := webpCanvasInfo(chunks)
+		if err != nil {
+			return nil, err
+		}
+		var payload [10]byte
+		payload[0] = 0x04 // XMP flag
+		if hasAlpha {
+			payload[0] |= 0x10
+		}
+		write24LE(payload[4:7], uint32(dims.X-1))
+		write24LE(payload[7:10], uint32(dims.Y-1))
+		out = slices.Insert(out, 12, riffChunk("VP8X", payload[:])...)
 	}
 
-	// Older/simple files may not have VP8X, so synthesize one from the canvas info.
-	dims, hasAlpha, err := webpCanvasInfo(chunks)
-	if err != nil {
-		return nil, err
-	}
-
-	vp8x := make([]byte, 18)
-	copy(vp8x[:4], []byte("VP8X"))
-	binary.LittleEndian.PutUint32(vp8x[4:8], 10)
-
-	flags := byte(0x04)
-	if hasAlpha {
-		flags |= 0x10
-	}
-
-	vp8x[8] = flags
-	write24LE(vp8x[12:15], uint32(dims.X-1))
-	write24LE(vp8x[15:18], uint32(dims.Y-1))
-
-	out = append(out, vp8x...)
-	out = append(out, chunks...)
 	out = append(out, newChunk...)
 	binary.LittleEndian.PutUint32(out[4:8], uint32(len(out)-8))
-	return out, nil
+	return append(out, data[chunksEnd:]...), nil
 }
 
 func riffChunk(fourcc string, payload []byte) []byte {
