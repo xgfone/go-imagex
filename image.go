@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Package imagex provides image helpers.
+// The JPEG and PNG decoders are registered by default.
 package imagex
 
 import (
@@ -21,6 +22,8 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"math"
 	"net/http"
