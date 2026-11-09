@@ -65,6 +65,9 @@ func TestAIGCBuildXMPPacketErrors(t *testing.T) {
 	if err := aigc.BuildXMPPacket(&bytes.Buffer{}, "xml", "x"); err == nil {
 		t.Fatal("expected reserved prefix error")
 	}
+	if err := aigc.BuildXMPPacket(&bytes.Buffer{}, "rdf", "urn:custom"); err == nil {
+		t.Fatal("expected RDF namespace prefix to be reserved")
+	}
 	if err := aigc.BuildXMPPacket(&bytes.Buffer{}, "bad prefix", "x"); err == nil {
 		t.Fatal("expected invalid prefix error")
 	}

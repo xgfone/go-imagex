@@ -118,7 +118,7 @@ func validateXMLPrefix(s string) (string, error) {
 		return "", errors.New("prefix is empty")
 	}
 
-	if strings.EqualFold(s, "xml") || strings.EqualFold(s, "xmlns") {
+	if s == "rdf" || strings.EqualFold(s, "xml") || strings.EqualFold(s, "xmlns") {
 		return "", fmt.Errorf("reserved prefix %q is not allowed", s)
 	}
 
