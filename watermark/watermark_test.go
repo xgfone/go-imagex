@@ -74,6 +74,18 @@ func TestImageWatermarkDraw(t *testing.T) {
 	}
 }
 
+func TestImageWatermarkDrawUsesMarkBounds(t *testing.T) {
+	src := wmBaseImage(6, 4)
+	want := color.NRGBA{R: 200, G: 10, B: 10, A: 255}
+	mark := coloredMark(4, 3, want).SubImage(image.Rect(2, 1, 4, 3))
+
+	position := Position{Position: PositionBottomRight}
+	out := position.ImageWatermark().Draw(src, mark)
+	if got := color.NRGBAModel.Convert(out.At(4, 2)).(color.NRGBA); got != want {
+		t.Fatalf("watermark pixel at (4,2) = %v, want %v", got, want)
+	}
+}
+
 func TestTextWatermarkDraw(t *testing.T) {
 	otf, err := opentype.Parse(goregular.TTF)
 	if err != nil {

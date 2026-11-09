@@ -57,8 +57,9 @@ func (wm ImageWatermark) Transform(_ context.Context, img image.Image) (image.Im
 // Draw overlays mark onto src and returns the result.
 func (wm ImageWatermark) Draw(src, mark image.Image) image.Image {
 	out := imagex.ToNRGBA(src)
-	pos := wm.Position.calculatePosition(src.Bounds().Size(), mark.Bounds().Size())
-	rect := image.Rectangle{Min: pos, Max: pos.Add(mark.Bounds().Size())}
-	draw.Draw(out, rect, mark, image.Point{}, draw.Over)
+	markBounds := mark.Bounds()
+	pos := wm.Position.calculatePosition(src.Bounds().Size(), markBounds.Size())
+	rect := image.Rectangle{Min: pos, Max: pos.Add(markBounds.Size())}
+	draw.Draw(out, rect, mark, markBounds.Min, draw.Over)
 	return out
 }
