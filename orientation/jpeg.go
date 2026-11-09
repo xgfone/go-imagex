@@ -27,27 +27,34 @@ func ExtractOrientationFromJPEG(data []byte) int {
 	}
 
 	// Walk the JPEG segments until Start Of Scan or End Of Image.
-	for i := 2; i+4 <= len(data); {
-		if data[i] != 0xFF {
+	for i := 2; i < len(data) && data[i] == 0xFF; {
+		// A marker may be preceded by any number of 0xFF fill bytes.
+		for i < len(data) && data[i] == 0xFF {
+			i++
+		}
+		if i == len(data) {
 			break
 		}
 
-		marker := data[i+1]
-		if marker == 0xDA || marker == 0xD9 {
+		marker := data[i]
+		i++
+		switch {
+		case marker == 0xDA || marker == 0xD9:
+			return 1
+		case marker == 0x01 || (0xD0 <= marker && marker <= 0xD7):
+			continue // Standalone markers have no length field.
+		}
+		if len(data)-i < 2 {
 			break
 		}
 
-		if i+4 > len(data) {
-			break
-		}
-
-		segLen := int(binary.BigEndian.Uint16(data[i+2 : i+4]))
-		if segLen < 2 || i+2+segLen > len(data) {
+		segLen := int(binary.BigEndian.Uint16(data[i : i+2]))
+		if segLen < 2 || segLen > len(data)-i {
 			break
 		}
 
 		if marker == 0xE1 {
-			payload := data[i+4 : i+2+segLen]
+			payload := data[i+2 : i+segLen]
 			// Parse the EXIF payload when the APP1 segment starts with "Exif\0\0".
 			if len(payload) >= 6 && bytes.Equal(payload[:6], []byte{'E', 'x', 'i', 'f', 0, 0}) {
 				if o, ok := parseExifOrientation(payload[6:]); ok {
@@ -56,7 +63,7 @@ func ExtractOrientationFromJPEG(data []byte) int {
 			}
 		}
 
-		i += 2 + segLen
+		i += segLen
 	}
 
 	return 1
@@ -83,10 +90,11 @@ func parseExifOrientation(tiff []byte) (int, bool) {
 		return 0, false
 	}
 
-	ifd0 := int(order.Uint32(tiff[4:8]))
-	if ifd0 < 0 || ifd0+2 > len(tiff) {
+	offset := order.Uint32(tiff[4:8])
+	if uint64(offset) > uint64(len(tiff)-2) {
 		return 0, false
 	}
+	ifd0 := int(offset)
 
 	count := int(order.Uint16(tiff[ifd0 : ifd0+2]))
 	entryBase := ifd0 + 2
@@ -103,11 +111,11 @@ func parseExifOrientation(tiff []byte) (int, bool) {
 
 		typ := order.Uint16(tiff[off+2 : off+4])
 		cnt := order.Uint32(tiff[off+4 : off+8])
-		if typ != 3 || cnt < 1 {
+		val := order.Uint16(tiff[off+8 : off+10])
+		if typ != 3 || cnt != 1 || val < 1 || val > 8 {
 			return 0, false
 		}
 
-		val := order.Uint16(tiff[off+8 : off+10])
 		return int(val), true
 	}
 

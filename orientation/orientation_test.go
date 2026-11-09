@@ -181,6 +181,17 @@ func TestExtractOrientationFromJPEG(t *testing.T) {
 	if got := ExtractOrientationFromJPEG(buildEXIFOrientationJPEG(8, binary.LittleEndian)); got != 8 {
 		t.Fatalf("unexpected little-endian orientation: %d", got)
 	}
+	jpeg := buildEXIFOrientationJPEG(6, binary.LittleEndian)
+	withFill := bytes.Join([][]byte{jpeg[:2], {0xFF, 0xFF}, jpeg[2:]}, nil)
+	if got := ExtractOrientationFromJPEG(withFill); got != 6 {
+		t.Fatalf("orientation after marker fill = %d, want 6", got)
+	}
+	for _, invalid := range []uint16{0, 9, 0xFFFF} {
+		jpeg := buildEXIFOrientationJPEG(invalid, binary.LittleEndian)
+		if got := ExtractOrientationFromJPEG(jpeg); got != 1 {
+			t.Errorf("orientation for invalid value %d = %d, want 1", invalid, got)
+		}
+	}
 	if got := ExtractOrientationFromJPEG([]byte("bad")); got != 1 {
 		t.Fatalf("unexpected fallback orientation: %d", got)
 	}
@@ -190,6 +201,7 @@ func TestParseExifOrientationFailures(t *testing.T) {
 	cases := [][]byte{
 		nil,
 		[]byte("II"),
+		[]byte{'I', 'I', 42, 0, 0xFF, 0xFF, 0xFF, 0x7F},
 		append([]byte("ZZ"), make([]byte, 10)...),
 		func() []byte {
 			buf := append([]byte("II"), 0, 0)
